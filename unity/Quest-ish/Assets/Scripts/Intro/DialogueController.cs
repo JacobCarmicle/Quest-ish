@@ -22,7 +22,7 @@ public class DialogueController : MonoBehaviour
         if (dmDialogueText != null)
         {
             dmDialogueText.overflowMode = TextOverflowModes.Overflow;
-            dmDialogueText.enableWordWrapping = true;
+            dmDialogueText.textWrappingMode = TextWrappingModes.Normal;
         }
 
         if (dialogueScrollRect == null)
