@@ -1,3 +1,5 @@
+using System;
+using System.Collections;
 using UnityEngine;
 
 public class IntroFlowDirector : MonoBehaviour
@@ -9,6 +11,10 @@ public class IntroFlowDirector : MonoBehaviour
     public PlayerInputController input;
     public HintToast hint;
 
+    [Header("AI (Optional)")]
+    public bool enableAI = false;
+    public OpenAIIntroClient aiClient;
+
     [Header("Speaker Portraits (Optional)")]
     public Sprite dmPortrait;
     public Sprite enemyPortrait;
@@ -16,6 +22,12 @@ public class IntroFlowDirector : MonoBehaviour
     [Header("Speaker Names")]
     public string dmName = "DM";
     public string enemyName = "Enemy";
+
+    private bool _isHandling;
+
+    private static readonly string[] ImpossibleHints = { "god", "infinite", "hack", "cheat", "spawn 10000", "delete the game" };
+    private static readonly string[] CombatHints = { "attack", "hit", "stab", "shoot", "fight", "kill", "punch" };
+    private static readonly string[] SkillHints = { "sneak", "stealth", "persuade", "convince", "climb", "pick", "lock", "search", "inspect", "roll" };
 
     private void OnEnable()
     {
@@ -31,27 +43,22 @@ public class IntroFlowDirector : MonoBehaviour
     {
         EnsureAudioListener();
 
-        // Phase 0: Arrival
+        if (gameState != null && gameState.world == null)
+            gameState.world = WorldStatePersistence.Load();
+
         if (tutorial != null)
             tutorial.SetPhase(TutorialController.TutorialPhase.Arrival);
 
         SetSpeaker(dmName, dmPortrait);
 
-        if (dialogue != null)
-        {
-            dialogue.Say(
-                "You wake up on a forest path. That’s concerning… but not unusual.\n\n" +
-                "Before you do anything else — what do people call you?"
-            );
-        }
+        dialogue?.Say(
+            "You wake up on a forest path. That’s concerning… but not unusual.\n\n" +
+            "Before you do anything else — what do people call you?"
+        );
 
-        if (tutorial != null)
-            tutorial.SetPhase(TutorialController.TutorialPhase.NameQuestion);
+        tutorial?.SetPhase(TutorialController.TutorialPhase.NameQuestion);
+        input?.SetInteractable(true);
 
-        if (input != null)
-            input.SetInteractable(true);
-
-        // First-time micro-hint (non-blocking)
         if (hint != null)
         {
             hint.HideImmediate();
@@ -61,94 +68,190 @@ public class IntroFlowDirector : MonoBehaviour
 
     private void HandleSubmit(string playerText)
     {
-        playerText = (playerText ?? "").Trim();
-        if (string.IsNullOrEmpty(playerText)) return;
+        if (_isHandling) return;
+        StartCoroutine(HandleSubmitRoutine(playerText));
+    }
+
+    private IEnumerator HandleSubmitRoutine(string playerText)
+    {
+        playerText = (playerText ?? string.Empty).Trim();
+        if (string.IsNullOrEmpty(playerText)) yield break;
+
+        _isHandling = true;
+        input?.SetInteractable(false);
 
         var phase = tutorial != null ? tutorial.Phase : TutorialController.TutorialPhase.Arrival;
 
-        switch (phase)
+        if (phase == TutorialController.TutorialPhase.NameQuestion)
         {
-            case TutorialController.TutorialPhase.NameQuestion:
+            gameState?.SetPlayerName(playerText);
+            gameState?.AddRecentEvent($"Chose name: {playerText}");
+
+            SetSpeaker(dmName, dmPortrait);
+            dialogue?.Say($"Alright, {playerText}. Strong name.\n\nWhat do you do?");
+            tutorial?.SetPhase(TutorialController.TutorialPhase.FirstAction);
+            hint?.ShowForSeconds("Tip: Try something silly. Failure is part of the fun.", 3.0f);
+
+            SaveState();
+            input?.SetInteractable(true);
+            _isHandling = false;
+            yield break;
+        }
+
+        IntroAIResponse aiResponse = null;
+        string aiError = null;
+
+        if (enableAI && aiClient != null)
+        {
+            var req = BuildTurnRequest(playerText);
+            yield return aiClient.RequestTurn(req, (resp, err) =>
             {
-                if (gameState != null)
-                {
-                    gameState.SetPlayerName(playerText);
-                    gameState.AddRecentEvent($"Chose name: {playerText}");
-                }
+                aiResponse = resp;
+                aiError = err;
+            });
+        }
 
+        if (aiResponse == null)
+        {
+            if (!string.IsNullOrEmpty(aiError))
+                gameState?.AddRecentEvent($"AI fallback: {aiError}");
+
+            var fallbackIntent = ClassifyInputHeuristic(playerText);
+            ApplyIntent(fallbackIntent, playerText, null);
+        }
+        else
+        {
+            var parsed = ParseIntent(aiResponse.intentType, playerText);
+            ApplyIntent(parsed, playerText, aiResponse);
+            ApplyDirectives(aiResponse.directives);
+        }
+
+        SaveState();
+        input?.SetInteractable(true);
+        _isHandling = false;
+    }
+
+    public IntroTurnRequest BuildTurnRequest(string playerText)
+    {
+        var world = gameState != null ? gameState.world : new WorldStateModel();
+        return new IntroTurnRequest
+        {
+            sessionId = world.sessionId,
+            playerInput = playerText,
+            phase = tutorial != null ? tutorial.Phase.ToString() : "Unknown",
+            playerName = world.player != null ? world.player.name : string.Empty,
+            storySummary = world.storySummary,
+            recentEvents = world.recentEvents ?? Array.Empty<string>()
+        };
+    }
+
+    public IntroIntentType ParseIntent(string raw, string playerText)
+    {
+        if (Enum.TryParse(raw ?? string.Empty, true, out IntroIntentType parsed))
+            return parsed;
+        return ClassifyInputHeuristic(playerText);
+    }
+
+    public IntroIntentType ClassifyInputHeuristic(string text)
+    {
+        var lower = (text ?? string.Empty).ToLowerInvariant();
+
+        foreach (var k in ImpossibleHints)
+            if (lower.Contains(k)) return IntroIntentType.INVALID;
+
+        foreach (var k in CombatHints)
+            if (lower.Contains(k)) return IntroIntentType.COMBAT;
+
+        foreach (var k in SkillHints)
+            if (lower.Contains(k)) return IntroIntentType.SKILL_CHECK;
+
+        if (lower.Split(' ').Length <= 2 || lower == "do it" || lower == "that")
+            return IntroIntentType.CLARIFY;
+
+        return IntroIntentType.DIALOGUE;
+    }
+
+    public void ApplyIntent(IntroIntentType intent, string playerText, IntroAIResponse ai)
+    {
+        var narration = ai != null && !string.IsNullOrWhiteSpace(ai.narration) ? ai.narration : null;
+        var clarify = ai != null && !string.IsNullOrWhiteSpace(ai.clarifyQuestion) ? ai.clarifyQuestion : null;
+
+        var currentPhase = tutorial != null ? tutorial.Phase : TutorialController.TutorialPhase.Arrival;
+        var nextResolvedPhase = currentPhase == TutorialController.TutorialPhase.Outcome
+            ? TutorialController.TutorialPhase.Complete
+            : TutorialController.TutorialPhase.Outcome;
+
+        switch (intent)
+        {
+            case IntroIntentType.DIALOGUE:
                 SetSpeaker(dmName, dmPortrait);
-
-                if (dialogue != null)
-                {
-                    dialogue.Say(
-                        $"Alright, {playerText}. Strong name.\n\n" +
-                        "What do you do?"
-                    );
-                }
-
-                if (tutorial != null)
-                    tutorial.SetPhase(TutorialController.TutorialPhase.FirstAction);
-
-                if (hint != null)
-                    hint.ShowForSeconds("Tip: Try something silly. Failure is part of the fun.", 3.0f);
-
+                dialogue?.Say(narration ?? $"You say: \"{playerText}\".\n\nThe world listens.");
+                tutorial?.SetPhase(nextResolvedPhase);
+                gameState?.AddRecentEvent($"Dialogue: {playerText}");
                 break;
-            }
 
-            case TutorialController.TutorialPhase.FirstAction:
+            case IntroIntentType.SKILL_CHECK:
+                SetSpeaker(dmName, dmPortrait);
+                dialogue?.Say(narration ?? $"You attempt \"{playerText}\".\n\nRoll resolves in engine: partial success.");
+                tutorial?.SetPhase(nextResolvedPhase);
+                gameState?.AddRecentEvent($"Skill check: {playerText}");
+                break;
+
+            case IntroIntentType.COMBAT:
+                SetSpeaker(enemyName, enemyPortrait != null ? enemyPortrait : dmPortrait);
+                dialogue?.Say(narration ?? $"You initiate combat with \"{playerText}\".\n\nEncounter hook triggered.");
+                tutorial?.SetPhase(nextResolvedPhase);
+                gameState?.AddRecentEvent($"Combat intent: {playerText}");
+                break;
+
+            case IntroIntentType.CLARIFY:
+                SetSpeaker(dmName, dmPortrait);
+                dialogue?.Say(clarify ?? "Do you want to talk, sneak, or attack?");
+                gameState?.AddRecentEvent("Clarify requested");
+                break;
+
+            case IntroIntentType.INVALID:
+                SetSpeaker(dmName, dmPortrait);
+                dialogue?.Say(narration ?? "That breaks the rules of this world. Try something in-world and chaotic instead.");
+                gameState?.AddRecentEvent($"Invalid intent: {playerText}");
+                break;
+        }
+    }
+
+    public void ApplyDirectives(IntroDirective[] directives)
+    {
+        if (directives == null || directives.Length == 0) return;
+
+        foreach (var d in directives)
+        {
+            if (d == null || string.IsNullOrWhiteSpace(d.type)) continue;
+
+            switch (d.type)
             {
-                if (gameState != null)
-                    gameState.AddRecentEvent($"Tried: {playerText}");
+                case "set_background":
+                case "play_music":
+                case "play_sfx":
+                case "show_actor":
+                case "hide_actor":
+                    gameState?.AddRecentEvent($"Directive:{d.type}");
+                    break;
 
-                // You can swap to an enemy portrait/name here later if the story introduces one.
-                SetSpeaker(dmName, dmPortrait);
+                case "ask_clarification":
+                    if (!string.IsNullOrWhiteSpace(d.dataJson))
+                        dialogue?.Say("Can you clarify that action?");
+                    break;
 
-                if (dialogue != null)
-                {
-                    dialogue.Say(
-                        $"You try to \"{playerText}\".\n\n" +
-                        "It almost works. Almost.\n\n" +
-                        "What do you do next?"
-                    );
-                }
-
-                if (tutorial != null)
-                    tutorial.SetPhase(TutorialController.TutorialPhase.Outcome);
-
-                break;
-            }
-
-            case TutorialController.TutorialPhase.Outcome:
-            {
-                SetSpeaker(dmName, dmPortrait);
-
-                if (tutorial != null)
-                    tutorial.SetPhase(TutorialController.TutorialPhase.Complete);
-
-                if (dialogue != null)
-                {
-                    dialogue.Say(
-                        "Okay. You seem ready. The path ahead looks… questionably safe.\n\n" +
-                        "What do you do?"
-                    );
-                }
-
-                break;
-            }
-
-            default:
-            {
-                if (gameState != null)
-                    gameState.AddRecentEvent($"Did: {playerText}");
-
-                SetSpeaker(dmName, dmPortrait);
-
-                if (dialogue != null)
-                    dialogue.Say($"Noted: \"{playerText}\".\n\n(Next: connect AI DM + engine rules.)");
-
-                break;
+                default:
+                    gameState?.AddRecentEvent($"Ignored directive:{d.type}");
+                    break;
             }
         }
+    }
+
+    private void SaveState()
+    {
+        if (gameState == null || gameState.world == null) return;
+        WorldStatePersistence.Save(gameState.world);
     }
 
     private void SetSpeaker(string speakerName, Sprite portrait)
@@ -159,8 +262,6 @@ public class IntroFlowDirector : MonoBehaviour
 
     private void EnsureAudioListener()
     {
-        // Your console screenshot shows: "There are no audio listeners in the scene"
-        // Unity needs exactly 1 AudioListener to hear ANY AudioSource.
         if (FindObjectOfType<AudioListener>() != null) return;
 
         var cam = Camera.main;
@@ -170,7 +271,6 @@ public class IntroFlowDirector : MonoBehaviour
             return;
         }
 
-        // Fallback: add one to this object so you at least get sound.
         gameObject.AddComponent<AudioListener>();
     }
 }
