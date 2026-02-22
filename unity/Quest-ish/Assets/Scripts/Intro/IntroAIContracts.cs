@@ -10,6 +10,10 @@ public class IntroTurnRequest
     public string playerName;
     public string storySummary;
     public string[] recentEvents;
+    public string currentBeat;
+    public string goalHint;
+    public int threatClock;
+    public bool encounterActive;
 }
 
 [Serializable]

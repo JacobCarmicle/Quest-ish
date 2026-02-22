@@ -454,6 +454,48 @@ public class IntroEditModeTests
         UnityEngine.Object.DestroyImmediate(containerGo);
     }
 
+
+    [Test]
+    public void TutorialBeatManager_AdvancesAcrossCoreBeats()
+    {
+        var t = Type.GetType("TutorialBeatManager, Assembly-CSharp");
+        var go = new GameObject("BeatManager");
+        var bm = go.AddComponent(t);
+
+        var intentEnum = Type.GetType("IntroIntentType, Assembly-CSharp");
+        var dialogue = Enum.Parse(intentEnum, "DIALOGUE");
+        var skill = Enum.Parse(intentEnum, "SKILL_CHECK");
+
+        t.GetMethod("AdvanceByIntent").Invoke(bm, new object[] { dialogue });
+        t.GetMethod("AdvanceByIntent").Invoke(bm, new object[] { skill });
+        t.GetMethod("AdvanceByIntent").Invoke(bm, new object[] { skill });
+
+        var beat = t.GetField("currentBeat").GetValue(bm).ToString();
+        Assert.IsTrue(beat == "TriggerThreat" || beat == "FirstEncounter" || beat == "ResolveEncounter");
+
+        UnityEngine.Object.DestroyImmediate(go);
+    }
+
+    [Test]
+    public void EncounterDirector_ThreatClock_TriggersEncounter()
+    {
+        var t = Type.GetType("EncounterDirector, Assembly-CSharp");
+        var go = new GameObject("Encounter");
+        var ed = go.AddComponent(t);
+
+        t.GetMethod("ApplyRollOutcome").Invoke(ed, new object[] { false });
+        t.GetMethod("ApplyRollOutcome").Invoke(ed, new object[] { false });
+
+        var active = (bool)t.GetField("encounterActive").GetValue(ed);
+        Assert.IsTrue(active);
+
+        t.GetMethod("ResolveEncounter").Invoke(ed, null);
+        active = (bool)t.GetField("encounterActive").GetValue(ed);
+        Assert.IsFalse(active);
+
+        UnityEngine.Object.DestroyImmediate(go);
+    }
+
     private static (GameObject root, Component director, Component tutorial, Component gameState, MethodInfo handleSubmit, Type tutorialType, Type gameStateType, Type directorType, TextMeshProUGUI dialogueText) BuildIntroFixture()
     {
         var root = new GameObject("FixtureRoot");

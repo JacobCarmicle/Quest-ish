@@ -14,6 +14,9 @@ public class IntroFlowDirector : MonoBehaviour
     public IntroDirectiveExecutor directiveExecutor;
     public TutorialBeatManager beatManager;
     public EncounterDirector encounterDirector;
+    public DiceRollAnimator diceRollAnimator;
+    public Sprite npcPortrait;
+    public string npcName = "Caretaker";
 
     [Header("AI (Optional)")]
     public bool enableAI = false;
@@ -40,6 +43,7 @@ public class IntroFlowDirector : MonoBehaviour
         directiveExecutor ??= FindFirstObjectByType<IntroDirectiveExecutor>();
         beatManager ??= FindFirstObjectByType<TutorialBeatManager>();
         encounterDirector ??= FindFirstObjectByType<EncounterDirector>();
+        diceRollAnimator ??= FindFirstObjectByType<DiceRollAnimator>();
         aiClient ??= FindFirstObjectByType<OpenAIIntroClient>();
 
         if (optionsUI == null)
@@ -71,6 +75,28 @@ public class IntroFlowDirector : MonoBehaviour
             var go = new GameObject("EncounterDirector");
             encounterDirector = go.AddComponent<EncounterDirector>();
         }
+
+        if (diceRollAnimator == null)
+        {
+            var go = new GameObject("DiceRollAnimator");
+            var cg = go.AddComponent<CanvasGroup>();
+            var txtGo = new GameObject("RollText", typeof(RectTransform), typeof(TMPro.TextMeshProUGUI));
+            txtGo.transform.SetParent(go.transform, false);
+            var txt = txtGo.GetComponent<TMPro.TextMeshProUGUI>();
+            txt.fontSize = 28;
+            txt.alignment = TMPro.TextAlignmentOptions.Center;
+            var rt = txtGo.GetComponent<RectTransform>();
+            rt.anchorMin = new Vector2(0.2f, 0.78f);
+            rt.anchorMax = new Vector2(0.8f, 0.92f);
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
+            diceRollAnimator = go.AddComponent<DiceRollAnimator>();
+            diceRollAnimator.canvasGroup = cg;
+            diceRollAnimator.rollText = txt;
+            cg.alpha = 0f;
+        }
+
+        EnsurePortraitPlaceholders();
 
         if (!enableAI && aiClient != null && aiClient.HasConfiguredApiKey)
             enableAI = true;
@@ -179,7 +205,6 @@ public class IntroFlowDirector : MonoBehaviour
             var fallbackIntent = ClassifyInputHeuristic(playerText);
             ApplyIntent(fallbackIntent, playerText, null);
             optionsUI?.Clear();
-        gameState?.AddRecentEvent("Tutorial started in wizard tower");
         }
         else
         {
@@ -189,7 +214,6 @@ public class IntroFlowDirector : MonoBehaviour
             ApplyIntent(validatedIntent, playerText, aiResponse);
             ApplyDirectives(aiResponse.directives);
             optionsUI?.Clear();
-        gameState?.AddRecentEvent("Tutorial started in wizard tower");
         }
 
         if (tutorial != null && tutorial.Phase == TutorialController.TutorialPhase.Complete)
@@ -210,7 +234,11 @@ public class IntroFlowDirector : MonoBehaviour
             phase = tutorial != null ? tutorial.Phase.ToString() : "Unknown",
             playerName = world.player != null ? world.player.name : string.Empty,
             storySummary = world.storySummary,
-            recentEvents = world.recentEvents ?? Array.Empty<string>()
+            recentEvents = world.recentEvents ?? Array.Empty<string>(),
+            currentBeat = beatManager != null ? beatManager.currentBeat.ToString() : "WakeInTower",
+            goalHint = beatManager != null ? beatManager.GoalHint() : "Stabilize the tower",
+            threatClock = encounterDirector != null ? encounterDirector.threatClock : 0,
+            encounterActive = encounterDirector != null && encounterDirector.encounterActive
         };
     }
 
@@ -255,18 +283,31 @@ public class IntroFlowDirector : MonoBehaviour
         switch (intent)
         {
             case IntroIntentType.DIALOGUE:
-                SetSpeaker(dmName, dmPortrait);
+                var lower = (playerText ?? string.Empty).ToLowerInvariant();
+                var npcTalk = lower.Contains("npc") || lower.Contains("caretaker") || lower.Contains("librarian") || lower.Contains("talk");
+                if (encounterDirector != null && encounterDirector.encounterActive)
+                    SetSpeaker(enemyName, enemyPortrait != null ? enemyPortrait : dmPortrait);
+                else if (npcTalk && npcPortrait != null)
+                    SetSpeaker(npcName, npcPortrait);
+                else
+                    SetSpeaker(dmName, dmPortrait);
                 dialogue?.Say(narration ?? $"You attempt: \"{playerText}\".\n\nThe tower reacts — faint runes pulse near the sealed door.\nGoal: {beatManager?.GoalHint() ?? "Keep exploring"}");
                 tutorial?.SetPhase(nextResolvedPhase);
                 gameState?.AddRecentEvent($"Dialogue: {playerText}");
                 break;
 
             case IntroIntentType.SKILL_CHECK:
-                SetSpeaker(dmName, dmPortrait);
+                if (encounterDirector != null && encounterDirector.encounterActive)
+                    SetSpeaker(enemyName, enemyPortrait != null ? enemyPortrait : dmPortrait);
+                else
+                    SetSpeaker(dmName, dmPortrait);
                 var level = gameState?.world?.player != null ? gameState.world.player.level : 1;
                 var roll = RollResolver.Resolve(playerText, level);
                 var rollLine = $"Roll: d20({roll.d20}) + {roll.modifier} [{roll.skill}] = {roll.total} vs DC {roll.dc} → {(roll.success ? "SUCCESS" : "FAIL")}";
+                diceRollAnimator?.Play(roll);
                 encounterDirector?.ApplyRollOutcome(roll.success);
+                if (roll.success && encounterDirector != null && encounterDirector.encounterActive && beatManager != null && beatManager.currentBeat >= TutorialBeat.FirstEncounter)
+                    encounterDirector.ResolveEncounter();
                 var outcomeText = roll.success
                     ? "Your move works, but stirs unstable energy in the room."
                     : "You miss the mark; the tower pushes back with a crackle of arcane force.";
@@ -337,6 +378,34 @@ public class IntroFlowDirector : MonoBehaviour
     {
         if (dialogue == null) return;
         dialogue.SetSpeaker(speakerName, portrait);
+    }
+
+    private void EnsurePortraitPlaceholders()
+    {
+        if (dmPortrait == null) dmPortrait = GeneratePlaceholderSprite(new Color(0.85f, 0.75f, 0.25f));
+        if (enemyPortrait == null) enemyPortrait = GeneratePlaceholderSprite(new Color(0.82f, 0.2f, 0.2f));
+        if (npcPortrait == null) npcPortrait = GeneratePlaceholderSprite(new Color(0.2f, 0.6f, 0.9f));
+    }
+
+    private static Sprite GeneratePlaceholderSprite(Color color)
+    {
+        var size = 128;
+        var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        var c = new Color[size * size];
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                var dx = x - size * 0.5f;
+                var dy = y - size * 0.5f;
+                var dist = Mathf.Sqrt(dx * dx + dy * dy) / (size * 0.5f);
+                var alpha = dist <= 1f ? 1f : 0f;
+                c[y * size + x] = new Color(color.r, color.g, color.b, alpha);
+            }
+        }
+        tex.SetPixels(c);
+        tex.Apply();
+        return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f));
     }
 
     private void EnsureAudioListener()
