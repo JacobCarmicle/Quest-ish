@@ -335,8 +335,13 @@ public class IntroFlowDirector : MonoBehaviour
                 else
                     SetSpeaker(dmName, dmPortrait);
                 var level = gameState?.world?.player != null ? gameState.world.player.level : 1;
-                var roll = RollResolver.Resolve(playerText, level);
-                var rollLine = $"Roll: d20({roll.d20}) + {roll.modifier} [{roll.skill}] = {roll.total} vs DC {roll.dc} → {(roll.success ? "SUCCESS" : "FAIL")}";
+                var threat = encounterDirector != null ? encounterDirector.threatClock : 0;
+                var cls = gameState?.world?.player?.classTag ?? string.Empty;
+                var lowerAction = (playerText ?? string.Empty).ToLowerInvariant();
+                var advantage = (cls == "thief" && (lowerAction.Contains("sneak") || lowerAction.Contains("stealth"))) || (cls == "mage" && lowerAction.Contains("arcane"));
+                var disadvantage = cls == "fighter" && lowerAction.Contains("arcane");
+                var roll = RollResolver.Resolve(playerText, level, threat, advantage, disadvantage);
+                var rollLine = $"Roll: d20({roll.d20}) + {roll.modifier} [{roll.skill}] = {roll.total} vs DC {roll.dc} → {roll.outcome.ToUpperInvariant()}";
                 diceRollAnimator?.Play(roll);
                 encounterDirector?.ApplyRollOutcome(roll.success);
                 if (roll.success && encounterDirector != null && encounterDirector.encounterActive && beatManager != null && beatManager.currentBeat >= TutorialBeat.FirstEncounter)

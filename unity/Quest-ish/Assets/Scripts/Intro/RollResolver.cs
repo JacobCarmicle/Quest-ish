@@ -10,17 +10,36 @@ public class SkillRollResult
     public int modifier;
     public int total;
     public bool success;
+    public string outcome; // critical_fail | fail | mixed | success | critical_success
 }
 
 public static class RollResolver
 {
     public static SkillRollResult Resolve(string playerText, int level = 1)
     {
+        return Resolve(playerText, level, 0, false, false);
+    }
+
+    public static SkillRollResult Resolve(string playerText, int level, int threatClock, bool advantage, bool disadvantage)
+    {
         var skill = InferSkill(playerText);
-        var dc = InferDC(playerText);
+        var dc = InferDC(playerText, threatClock);
         var modifier = SkillModifier(skill, level);
-        var d20 = UnityEngine.Random.Range(1, 21);
+
+        var d20a = UnityEngine.Random.Range(1, 21);
+        var d20b = UnityEngine.Random.Range(1, 21);
+        var d20 = (advantage && !disadvantage) ? Mathf.Max(d20a, d20b)
+                 : (disadvantage && !advantage) ? Mathf.Min(d20a, d20b)
+                 : d20a;
+
         var total = d20 + modifier;
+        var success = total >= dc;
+
+        var outcome = "fail";
+        if (d20 == 1) outcome = "critical_fail";
+        else if (d20 == 20) outcome = "critical_success";
+        else if (success && total >= dc + 5) outcome = "success";
+        else if (success) outcome = "mixed";
 
         return new SkillRollResult
         {
@@ -29,7 +48,8 @@ public static class RollResolver
             d20 = d20,
             modifier = modifier,
             total = total,
-            success = total >= dc
+            success = success,
+            outcome = outcome
         };
     }
 
@@ -45,13 +65,19 @@ public static class RollResolver
         return "Insight";
     }
 
-    public static int InferDC(string text)
+    public static int InferDC(string text, int threatClock = 0)
     {
         var t = (text ?? string.Empty).ToLowerInvariant();
-        if (t.Contains("impossible") || t.Contains("legendary")) return 20;
-        if (t.Contains("hard") || t.Contains("complex") || t.Contains("careful")) return 16;
-        if (t.Contains("easy") || t.Contains("simple")) return 10;
-        return 14;
+        var baseDc = 13;
+        if (t.Contains("impossible") || t.Contains("legendary")) baseDc = 19;
+        else if (t.Contains("hard") || t.Contains("complex") || t.Contains("careful")) baseDc = 16;
+        else if (t.Contains("easy") || t.Contains("simple")) baseDc = 10;
+
+        if (t.Contains("rune") || t.Contains("ward") || t.Contains("arcane"))
+            baseDc += 1;
+
+        baseDc += Mathf.Clamp(threatClock / 2, 0, 2);
+        return Mathf.Clamp(baseDc, 8, 22);
     }
 
     public static int SkillModifier(string skill, int level)
