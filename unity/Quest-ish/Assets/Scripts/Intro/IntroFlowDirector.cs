@@ -118,7 +118,10 @@ public class IntroFlowDirector : MonoBehaviour
         if (aiResponse == null)
         {
             if (!string.IsNullOrEmpty(aiError))
+            {
                 gameState?.AddRecentEvent($"AI fallback: {aiError}");
+                hint?.ShowForSeconds("Network hiccup. Using local DM fallback.", 2.2f);
+            }
 
             var fallbackIntent = ClassifyInputHeuristic(playerText);
             ApplyIntent(fallbackIntent, playerText, null);

@@ -11,6 +11,7 @@ public class OpenAIIntroClient : MonoBehaviour
     public string model = "gpt-4o-mini";
     public string endpoint = "https://api.openai.com/v1/chat/completions";
     public float timeoutSeconds = 20f;
+    [Range(0, 3)] public int maxRetries = 1;
 
     [Serializable]
     private class ChatMessage { public string role; public string content; }
@@ -50,56 +51,72 @@ public class OpenAIIntroClient : MonoBehaviour
         };
 
         var payload = JsonUtility.ToJson(reqObj);
-        using var req = new UnityWebRequest(endpoint, UnityWebRequest.kHttpVerbPOST);
-        req.uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(payload));
-        req.downloadHandler = new DownloadHandlerBuffer();
-        req.SetRequestHeader("Content-Type", "application/json");
-        req.SetRequestHeader("Authorization", $"Bearer {apiKey}");
-        req.timeout = Mathf.CeilToInt(timeoutSeconds);
+        var attempts = Mathf.Max(1, maxRetries + 1);
+        string lastError = null;
 
-        yield return req.SendWebRequest();
-
-        if (req.result != UnityWebRequest.Result.Success)
+        for (int attempt = 1; attempt <= attempts; attempt++)
         {
-            onDone?.Invoke(null, req.error ?? "request_failed");
+            using var req = new UnityWebRequest(endpoint, UnityWebRequest.kHttpVerbPOST);
+            req.uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(payload));
+            req.downloadHandler = new DownloadHandlerBuffer();
+            req.SetRequestHeader("Content-Type", "application/json");
+            req.SetRequestHeader("Authorization", $"Bearer {apiKey}");
+            req.timeout = Mathf.CeilToInt(timeoutSeconds);
+
+            yield return req.SendWebRequest();
+
+            if (req.result != UnityWebRequest.Result.Success)
+            {
+                lastError = req.error ?? "request_failed";
+                if (attempt < attempts)
+                {
+                    yield return new WaitForSeconds(0.2f * attempt);
+                    continue;
+                }
+
+                onDone?.Invoke(null, lastError);
+                yield break;
+            }
+
+            var body = req.downloadHandler.text;
+            ChatCompletionResponse completion;
+            try
+            {
+                completion = JsonUtility.FromJson<ChatCompletionResponse>(body);
+            }
+            catch
+            {
+                onDone?.Invoke(null, "parse_completion_failed");
+                yield break;
+            }
+
+            var content = completion?.choices != null && completion.choices.Length > 0
+                ? completion.choices[0].message?.content
+                : null;
+
+            if (string.IsNullOrWhiteSpace(content))
+            {
+                onDone?.Invoke(null, "empty_model_response");
+                yield break;
+            }
+
+            var json = ExtractJsonObject(content);
+            IntroAIResponse ai;
+            try
+            {
+                ai = JsonUtility.FromJson<IntroAIResponse>(json);
+            }
+            catch
+            {
+                onDone?.Invoke(null, "parse_ai_json_failed");
+                yield break;
+            }
+
+            onDone?.Invoke(ai, null);
             yield break;
         }
 
-        var body = req.downloadHandler.text;
-        ChatCompletionResponse completion;
-        try
-        {
-            completion = JsonUtility.FromJson<ChatCompletionResponse>(body);
-        }
-        catch
-        {
-            onDone?.Invoke(null, "parse_completion_failed");
-            yield break;
-        }
-
-        var content = completion?.choices != null && completion.choices.Length > 0
-            ? completion.choices[0].message?.content
-            : null;
-
-        if (string.IsNullOrWhiteSpace(content))
-        {
-            onDone?.Invoke(null, "empty_model_response");
-            yield break;
-        }
-
-        var json = ExtractJsonObject(content);
-        IntroAIResponse ai;
-        try
-        {
-            ai = JsonUtility.FromJson<IntroAIResponse>(json);
-        }
-        catch
-        {
-            onDone?.Invoke(null, "parse_ai_json_failed");
-            yield break;
-        }
-
-        onDone?.Invoke(ai, null);
+        onDone?.Invoke(null, lastError ?? "request_failed");
     }
 
     private static string ExtractJsonObject(string text)
