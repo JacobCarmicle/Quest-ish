@@ -3,7 +3,7 @@
 _Last updated: automated by OpenClaw_
 
 ## Current automated suite (EditMode)
-Result: **PASS** (13/13)
+Result: **PASS** (18/18)
 
 1. `TutorialController_Advance_StopsAtComplete` ✅
 2. `GameState_AddRecentEvent_KeepLast10` ✅
@@ -18,6 +18,11 @@ Result: **PASS** (13/13)
 11. `IntroFlowDirector_BuildTurnRequest_ContainsState` ✅
 12. `IntroFlowDirector_UnknownDirective_IsSafelyIgnored` ✅
 13. `WorldStatePersistence_SaveLoad_RoundTrip_Works` ✅
+14. `IntroAIResponseValidator_InvalidIntent_ReturnsFalse` ✅
+15. `IntroAIResponseValidator_ValidIntent_NormalizesFields` ✅
+16. `IntroFlowDirector_AllowedDirective_IsTracked` ✅
+17. `IntroDirectiveExecutor_SetBackground_Works` ✅
+18. `IntroOptionsUI_ShowOptions_SpawnsButtons` ✅
 
 ## Covered right now
 - Tutorial phase progression
@@ -27,15 +32,18 @@ Result: **PASS** (13/13)
 - Dialogue portrait fallback behavior
 - Intent parsing/routing matrix coverage
 - Turn request construction from runtime state
-- Directive allowlist safe-ignore behavior for unknown directives
+- AI response validation/normalization
+- Directive allowlist behavior + unknown safe-ignore
+- Directive execution path (background swap)
+- Options UI spawn pipeline
 - Persistence save/load round-trip for world state
 - Core portrait/text layout guard in Intro scene YAML
 
 ## Still missing test coverage (next)
-- Real network AI integration (with mocked HTTP + contract validation)
-- Timeout + retry/fallback UI messaging contract
+- Live API integration test harness (mock HTTP layer + contract fixture set)
+- Timeout + retry/fallback UI messaging contract assertions
 - PlayMode integration tests for runtime UI behavior and no-overlap across aspect ratios
-- Directive side effects beyond logging (actual VFX/SFX/background systems)
+- Directive side effects for audio/actor visibility in scene integration context
 
 ## Tracking rule
 - Any new tutorial feature should ship with at least one test in `Assets/Tests/EditMode/Intro` or `Assets/Tests/PlayMode/Intro`.

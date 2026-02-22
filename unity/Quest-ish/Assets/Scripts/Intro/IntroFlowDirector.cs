@@ -10,6 +10,8 @@ public class IntroFlowDirector : MonoBehaviour
     public DialogueController dialogue;
     public PlayerInputController input;
     public HintToast hint;
+    public IntroOptionsUI optionsUI;
+    public IntroDirectiveExecutor directiveExecutor;
 
     [Header("AI (Optional)")]
     public bool enableAI = false;
@@ -64,6 +66,8 @@ public class IntroFlowDirector : MonoBehaviour
             hint.HideImmediate();
             hint.ShowForSeconds("Tip: You can type anything.", 2.5f);
         }
+
+        optionsUI?.Clear();
     }
 
     private void HandleSubmit(string playerText)
@@ -118,6 +122,7 @@ public class IntroFlowDirector : MonoBehaviour
 
             var fallbackIntent = ClassifyInputHeuristic(playerText);
             ApplyIntent(fallbackIntent, playerText, null);
+            optionsUI?.ShowOptions(null, null);
         }
         else
         {
@@ -126,6 +131,7 @@ public class IntroFlowDirector : MonoBehaviour
 
             ApplyIntent(validatedIntent, playerText, aiResponse);
             ApplyDirectives(aiResponse.directives);
+            optionsUI?.ShowOptions(aiResponse.options, HandleSubmit);
         }
 
         SaveState();
@@ -228,25 +234,22 @@ public class IntroFlowDirector : MonoBehaviour
         {
             if (d == null || string.IsNullOrWhiteSpace(d.type)) continue;
 
-            switch (d.type)
+            if (d.type == "ask_clarification")
             {
-                case "set_background":
-                case "play_music":
-                case "play_sfx":
-                case "show_actor":
-                case "hide_actor":
-                    gameState?.AddRecentEvent($"Directive:{d.type}");
-                    break;
-
-                case "ask_clarification":
-                    if (!string.IsNullOrWhiteSpace(d.dataJson))
-                        dialogue?.Say("Can you clarify that action?");
-                    break;
-
-                default:
-                    gameState?.AddRecentEvent($"Ignored directive:{d.type}");
-                    break;
+                dialogue?.Say("Can you clarify that action?");
+                gameState?.AddRecentEvent("Directive:ask_clarification");
+                continue;
             }
+
+            var isAllowed = d.type == "set_background" || d.type == "play_music" || d.type == "play_sfx" || d.type == "show_actor" || d.type == "hide_actor";
+            var executed = directiveExecutor != null && directiveExecutor.Execute(d);
+
+            if (isAllowed)
+                gameState?.AddRecentEvent($"Directive:{d.type}");
+            else if (executed)
+                gameState?.AddRecentEvent($"Directive:{d.type}");
+            else
+                gameState?.AddRecentEvent($"Ignored directive:{d.type}");
         }
     }
 

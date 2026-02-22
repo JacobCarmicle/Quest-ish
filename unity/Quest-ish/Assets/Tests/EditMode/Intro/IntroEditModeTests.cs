@@ -390,6 +390,70 @@ public class IntroEditModeTests
         CleanupFixture(fixture);
     }
 
+
+    [Test]
+    public void IntroDirectiveExecutor_SetBackground_Works()
+    {
+        var go = new GameObject("Exec");
+        var execType = Type.GetType("IntroDirectiveExecutor, Assembly-CSharp");
+        var exec = go.AddComponent(execType);
+
+        var bgGo = new GameObject("BG");
+        var renderer = bgGo.AddComponent<SpriteRenderer>();
+        execType.GetField("backgroundRenderer").SetValue(exec, renderer);
+
+        var listType = execType.GetField("backgrounds").FieldType;
+        var list = Activator.CreateInstance(listType);
+        var itemType = Type.GetType("IntroDirectiveExecutor+NamedSprite, Assembly-CSharp");
+        var item = Activator.CreateInstance(itemType);
+        itemType.GetField("id").SetValue(item, "forest");
+
+        var tex = new Texture2D(2,2);
+        var spr = Sprite.Create(tex, new Rect(0,0,2,2), new Vector2(0.5f,0.5f));
+        itemType.GetField("sprite").SetValue(item, spr);
+        listType.GetMethod("Add").Invoke(list, new[] { item });
+        execType.GetField("backgrounds").SetValue(exec, list);
+
+        var dType = Type.GetType("IntroDirective, Assembly-CSharp");
+        var d = Activator.CreateInstance(dType);
+        dType.GetField("type").SetValue(d, "set_background");
+        dType.GetField("dataJson").SetValue(d, "{\"id\":\"forest\"}");
+
+        var ok = (bool)execType.GetMethod("Execute").Invoke(exec, new[] { d });
+        Assert.IsTrue(ok);
+        Assert.AreEqual(spr, renderer.sprite);
+
+        UnityEngine.Object.DestroyImmediate(go);
+        UnityEngine.Object.DestroyImmediate(bgGo);
+    }
+
+    [Test]
+    public void IntroOptionsUI_ShowOptions_SpawnsButtons()
+    {
+        var go = new GameObject("OptionsUI");
+        var uiType = Type.GetType("IntroOptionsUI, Assembly-CSharp");
+        var ui = go.AddComponent(uiType);
+
+        var containerGo = new GameObject("Container", typeof(RectTransform));
+        uiType.GetField("container").SetValue(ui, containerGo.GetComponent<RectTransform>());
+
+        var optionType = Type.GetType("IntroOption, Assembly-CSharp");
+        var arr = Array.CreateInstance(optionType, 2);
+        for (int i = 0; i < 2; i++)
+        {
+            var o = Activator.CreateInstance(optionType);
+            optionType.GetField("id").SetValue(o, $"o{i}");
+            optionType.GetField("label").SetValue(o, $"Option {i}");
+            arr.SetValue(o, i);
+        }
+
+        uiType.GetMethod("ShowOptions").Invoke(ui, new object[] { arr, null });
+        Assert.GreaterOrEqual(containerGo.transform.childCount, 2);
+
+        UnityEngine.Object.DestroyImmediate(go);
+        UnityEngine.Object.DestroyImmediate(containerGo);
+    }
+
     private static (GameObject root, Component director, Component tutorial, Component gameState, MethodInfo handleSubmit, Type tutorialType, Type gameStateType, Type directorType, TextMeshProUGUI dialogueText) BuildIntroFixture()
     {
         var root = new GameObject("FixtureRoot");
