@@ -6,8 +6,11 @@ public static class SceneRoutePlanner
     {
         return lastSceneTag switch
         {
-            "intro_scene" => "IntroScene",
-            "character_selection" => "CharacterSelection",
+            GameSceneTags.Intro => "IntroScene",
+            GameSceneTags.CharacterSelection => "CharacterSelection",
+            GameSceneTags.Hub => "CharacterSelection", // temporary hub target until dedicated hub scene exists
+            GameSceneTags.Encounter => "IntroScene",    // safe fallback to active gameplay scene
+            GameSceneTags.Inventory => "CharacterSelection",
             _ => "IntroScene"
         };
     }

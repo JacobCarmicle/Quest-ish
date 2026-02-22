@@ -174,7 +174,7 @@ public class IntroFlowDirector : MonoBehaviour
             gameState?.AddRecentEvent($"Chose name: {playerText}");
             var pstate = MainMenuFlow.LoadProgress();
             pstate.playerName = playerText;
-            pstate.lastSceneTag = "intro_scene";
+            GameBootstrap.MarkScene(pstate, GameSceneTags.Intro);
             MainMenuFlow.SaveProgress(pstate);
 
             SetSpeaker(dmName, dmPortrait);
@@ -195,9 +195,9 @@ public class IntroFlowDirector : MonoBehaviour
             {
                 _awaitingClassSelection = false;
                 var pstate2 = MainMenuFlow.LoadProgress();
-                pstate2.hasStartedGame = true;
+                GameBootstrap.MarkStarted(pstate2);
                 pstate2.playerClass = gameState.world.player.classTag;
-                pstate2.lastSceneTag = "intro_scene";
+                GameBootstrap.MarkScene(pstate2, GameSceneTags.Intro);
                 MainMenuFlow.SaveProgress(pstate2);
                 SetSpeaker(dmName, dmPortrait);
                 dialogue?.Say($"Excellent. {className} it is.\n\n{CharacterLoadout.StarterSummary(gameState.world.player)}\n\nYou stand in a wizard tower study with a sealed door, a glowing rune circle, and a whispering spellbook. What do you do?");

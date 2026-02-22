@@ -22,8 +22,12 @@ public class GameFlowEditModeTests
     public void SceneRoutePlanner_Continue_UsesKnownTag()
     {
         var t = T("SceneRoutePlanner");
-        Assert.AreEqual("IntroScene", (string)t.GetMethod("GetContinueScene").Invoke(null, new object[] { "intro_scene" }));
-        Assert.AreEqual("CharacterSelection", (string)t.GetMethod("GetContinueScene").Invoke(null, new object[] { "character_selection" }));
+        var tags = T("GameSceneTags");
+        var introTag = (string)tags.GetField("Intro").GetValue(null);
+        var classTag = (string)tags.GetField("CharacterSelection").GetValue(null);
+
+        Assert.AreEqual("IntroScene", (string)t.GetMethod("GetContinueScene").Invoke(null, new object[] { introTag }));
+        Assert.AreEqual("CharacterSelection", (string)t.GetMethod("GetContinueScene").Invoke(null, new object[] { classTag }));
     }
 
     [Test]
@@ -50,6 +54,40 @@ public class GameFlowEditModeTests
         Assert.IsFalse((bool)stateType.GetField("hasStartedGame").GetValue(state));
         Assert.AreEqual(string.Empty, (string)stateType.GetField("playerName").GetValue(state));
         Assert.AreEqual(string.Empty, (string)stateType.GetField("playerClass").GetValue(state));
-        Assert.AreEqual("intro_scene", (string)stateType.GetField("lastSceneTag").GetValue(state));
+        var tags = T("GameSceneTags");
+        var introTag = (string)tags.GetField("Intro").GetValue(null);
+        Assert.AreEqual(introTag, (string)stateType.GetField("lastSceneTag").GetValue(state));
     }
+
+
+    [Test]
+    public void MainMenuFlow_PrepareNewGameState_ResetsState()
+    {
+        var stateType = T("GameProgressState");
+        var state = Activator.CreateInstance(stateType);
+        stateType.GetField("hasStartedGame").SetValue(state, true);
+        stateType.GetField("playerName").SetValue(state, "Jacob");
+
+        var flow = T("MainMenuFlow");
+        var reset = flow.GetMethod("PrepareNewGameState").Invoke(null, new[] { state });
+
+        Assert.IsFalse((bool)stateType.GetField("hasStartedGame").GetValue(reset));
+        Assert.AreEqual(string.Empty, (string)stateType.GetField("playerName").GetValue(reset));
+    }
+
+    [Test]
+    public void MainMenuFlow_ResolveContinueScene_UsesProgressTag()
+    {
+        var stateType = T("GameProgressState");
+        var state = Activator.CreateInstance(stateType);
+
+        var tags = T("GameSceneTags");
+        var classTag = (string)tags.GetField("CharacterSelection").GetValue(null);
+        stateType.GetField("lastSceneTag").SetValue(state, classTag);
+
+        var flow = T("MainMenuFlow");
+        var scene = (string)flow.GetMethod("ResolveContinueScene").Invoke(null, new[] { state });
+        Assert.AreEqual("CharacterSelection", scene);
+    }
+
 }

@@ -7,8 +7,7 @@ public class MainMenuFlow : MonoBehaviour
 
     public void NewGame()
     {
-        var progress = LoadProgress();
-        GameBootstrap.ResetForNewGame(progress);
+        var progress = PrepareNewGameState(LoadProgress());
         SaveProgress(progress);
         SceneManager.LoadScene(SceneRoutePlanner.GetNewGameScene());
     }
@@ -16,13 +15,26 @@ public class MainMenuFlow : MonoBehaviour
     public void ContinueGame()
     {
         var progress = LoadProgress();
-        var scene = SceneRoutePlanner.GetContinueScene(progress.lastSceneTag);
+        var scene = ResolveContinueScene(progress);
         SceneManager.LoadScene(scene);
     }
 
     public void QuitGame()
     {
         Application.Quit();
+    }
+
+    public static GameProgressState PrepareNewGameState(GameProgressState state)
+    {
+        state ??= new GameProgressState();
+        GameBootstrap.ResetForNewGame(state);
+        return state;
+    }
+
+    public static string ResolveContinueScene(GameProgressState state)
+    {
+        state ??= new GameProgressState();
+        return SceneRoutePlanner.GetContinueScene(state.lastSceneTag);
     }
 
     public static GameProgressState LoadProgress()
