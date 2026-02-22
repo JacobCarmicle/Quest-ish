@@ -20,12 +20,18 @@ public class DialogueController : MonoBehaviour
     private void Awake()
     {
         if (dmDialogueText != null)
+        {
             dmDialogueText.overflowMode = TextOverflowModes.Overflow;
+            dmDialogueText.enableWordWrapping = true;
+        }
+
         if (dialogueScrollRect == null)
             dialogueScrollRect = FindFirstObjectByType<ScrollRect>();
 
         if (dialogueScrollRect == null && dmDialogueText != null)
             EnsureRuntimeScrollView();
+
+        EnsureScrollBindings();
     }
 
     private void EnsureRuntimeScrollView()
@@ -46,27 +52,40 @@ public class DialogueController : MonoBehaviour
         img.color = new Color(0, 0, 0, 0.18f);
         viewportGO.GetComponent<Mask>().showMaskGraphic = false;
 
-        var contentGO = new GameObject("Content", typeof(RectTransform));
-        var content = contentGO.GetComponent<RectTransform>();
-        content.SetParent(viewport, false);
-        content.anchorMin = new Vector2(0, 0);
-        content.anchorMax = new Vector2(1, 1);
-        content.offsetMin = Vector2.zero;
-        content.offsetMax = Vector2.zero;
-
-        textRT.SetParent(content, false);
-        textRT.anchorMin = new Vector2(0, 1);
-        textRT.anchorMax = new Vector2(1, 1);
-        textRT.pivot = new Vector2(0.5f, 1f);
-        textRT.offsetMin = new Vector2(8, -1200);
-        textRT.offsetMax = new Vector2(-8, 0);
+        textRT.SetParent(viewport, false);
 
         dialogueScrollRect = viewportGO.GetComponent<ScrollRect>();
         dialogueScrollRect.viewport = viewport;
-        dialogueScrollRect.content = content;
         dialogueScrollRect.horizontal = false;
         dialogueScrollRect.vertical = true;
         dialogueScrollRect.movementType = ScrollRect.MovementType.Clamped;
+    }
+
+    private void EnsureScrollBindings()
+    {
+        if (dmDialogueText == null || dialogueScrollRect == null) return;
+
+        var textRT = dmDialogueText.rectTransform;
+
+        if (dialogueScrollRect.viewport == null)
+            dialogueScrollRect.viewport = dialogueScrollRect.GetComponent<RectTransform>();
+
+        if (textRT.parent != dialogueScrollRect.viewport)
+            textRT.SetParent(dialogueScrollRect.viewport, false);
+
+        textRT.anchorMin = new Vector2(0f, 1f);
+        textRT.anchorMax = new Vector2(1f, 1f);
+        textRT.pivot = new Vector2(0.5f, 1f);
+        textRT.anchoredPosition = new Vector2(0f, 0f);
+        textRT.sizeDelta = new Vector2(-16f, textRT.sizeDelta.y);
+
+        var fitter = dmDialogueText.GetComponent<ContentSizeFitter>();
+        if (fitter == null) fitter = dmDialogueText.gameObject.AddComponent<ContentSizeFitter>();
+        fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        dialogueScrollRect.content = textRT;
+        dialogueScrollRect.scrollSensitivity = 24f;
     }
 
     public void SetDMName(string name)
@@ -98,7 +117,10 @@ public class DialogueController : MonoBehaviour
         dmDialogueText.text = _transcript.ToString();
 
         if (dialogueScrollRect != null)
+        {
+            Canvas.ForceUpdateCanvases();
             dialogueScrollRect.verticalNormalizedPosition = 0f;
+        }
     }
 
     // NEW: Set both speaker name + portrait
