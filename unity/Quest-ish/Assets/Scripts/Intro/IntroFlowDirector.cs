@@ -31,6 +31,7 @@ public class IntroFlowDirector : MonoBehaviour
     public string enemyName = "Enemy";
 
     private bool _isHandling;
+    private bool _awaitingClassSelection;
 
     private void Awake()
     {
@@ -127,6 +128,7 @@ public class IntroFlowDirector : MonoBehaviour
             tutorial.SetPhase(TutorialController.TutorialPhase.Arrival);
 
         SetSpeaker(dmName, dmPortrait);
+        dialogue?.ClearTranscript();
 
         dialogue?.Say(
             "You wake in a wizard tower, the air humming with unstable magic.\n\n" +
@@ -162,6 +164,7 @@ public class IntroFlowDirector : MonoBehaviour
 
         _isHandling = true;
         input?.SetInteractable(false);
+        dialogue?.AddPlayerLine(playerText);
 
         var phase = tutorial != null ? tutorial.Phase : TutorialController.TutorialPhase.Arrival;
 
@@ -171,11 +174,32 @@ public class IntroFlowDirector : MonoBehaviour
             gameState?.AddRecentEvent($"Chose name: {playerText}");
 
             SetSpeaker(dmName, dmPortrait);
-            dialogue?.Say($"Alright, {playerText}. Strong name.\n\nYou’re in a wizard tower study with a sealed door, a glowing rune circle, and a whispering spellbook. What do you do?");
+            dialogue?.Say($"Alright, {playerText}. Strong name.\n\nChoose your class: Thief, Fighter, or Mage.");
             tutorial?.SetPhase(TutorialController.TutorialPhase.FirstAction);
-            hint?.ShowForSeconds("Tip: Try something silly. Failure is part of the fun.", 3.0f);
+            _awaitingClassSelection = true;
+            hint?.ShowForSeconds("Pick a class to lock in your starter stats and items.", 3.0f);
 
             SaveState();
+            input?.SetInteractable(true);
+            _isHandling = false;
+            yield break;
+        }
+
+        if (_awaitingClassSelection)
+        {
+            if (gameState?.world?.player != null && CharacterLoadout.TryApplyClass(gameState.world.player, playerText, out var className))
+            {
+                _awaitingClassSelection = false;
+                SetSpeaker(dmName, dmPortrait);
+                dialogue?.Say($"Excellent. {className} it is.\n\n{CharacterLoadout.StarterSummary(gameState.world.player)}\n\nYou stand in a wizard tower study with a sealed door, a glowing rune circle, and a whispering spellbook. What do you do?");
+                hint?.ShowForSeconds("Now take your first meaningful action.", 2.5f);
+                SaveState();
+                input?.SetInteractable(true);
+                _isHandling = false;
+                yield break;
+            }
+
+            dialogue?.Say("Pick one class exactly: Thief, Fighter, or Mage.");
             input?.SetInteractable(true);
             _isHandling = false;
             yield break;
