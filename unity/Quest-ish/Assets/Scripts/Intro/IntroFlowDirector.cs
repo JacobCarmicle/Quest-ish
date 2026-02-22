@@ -38,6 +38,24 @@ public class IntroFlowDirector : MonoBehaviour
         directiveExecutor ??= FindFirstObjectByType<IntroDirectiveExecutor>();
         aiClient ??= FindFirstObjectByType<OpenAIIntroClient>();
 
+        if (optionsUI == null)
+        {
+            var go = new GameObject("IntroOptionsUI");
+            optionsUI = go.AddComponent<IntroOptionsUI>();
+        }
+
+        if (directiveExecutor == null)
+        {
+            var go = new GameObject("IntroDirectiveExecutor");
+            directiveExecutor = go.AddComponent<IntroDirectiveExecutor>();
+        }
+
+        if (aiClient == null)
+        {
+            var go = new GameObject("OpenAIIntroClient");
+            aiClient = go.AddComponent<OpenAIIntroClient>();
+        }
+
         if (!enableAI && aiClient != null && aiClient.HasConfiguredApiKey)
             enableAI = true;
     }
@@ -79,7 +97,10 @@ public class IntroFlowDirector : MonoBehaviour
         if (hint != null)
         {
             hint.HideImmediate();
-            hint.ShowForSeconds("Tip: You can type anything.", 2.5f);
+            if (enableAI && (aiClient == null || !aiClient.HasConfiguredApiKey))
+                hint.ShowForSeconds("AI enabled but API key missing. Using fallback DM.", 2.8f);
+            else
+                hint.ShowForSeconds("Tip: You can type anything.", 2.5f);
         }
 
         optionsUI?.Clear();
