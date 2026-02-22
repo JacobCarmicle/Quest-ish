@@ -180,6 +180,85 @@ public class IntroEditModeTests
         StringAssert.IsMatch(@"m_AnchorMax: \{x: 0\.96, y: 0\.5(0)?\}", bodyBlock);
     }
 
+
+    [Test]
+    public void IntroFlowDirector_FirstAction_SubmitAddsEventAndAdvancesToOutcome()
+    {
+        var fixture = BuildIntroFixture();
+
+        var phaseEnum = fixture.tutorialType.GetNestedType("TutorialPhase");
+        var firstAction = Enum.Parse(phaseEnum, "FirstAction");
+        fixture.tutorialType.GetMethod("SetPhase").Invoke(fixture.tutorial, new[] { firstAction });
+
+        fixture.handleSubmit.Invoke(fixture.director, new object[] { "jump over the puddle" });
+
+        var phase = fixture.tutorialType.GetProperty("Phase").GetValue(fixture.tutorial).ToString();
+        Assert.AreEqual("Outcome", phase);
+
+        var world = fixture.gameStateType.GetField("world").GetValue(fixture.gameState);
+        var events = (string[])world.GetType().GetField("recentEvents").GetValue(world);
+        Assert.IsTrue(events.Length > 0);
+        StringAssert.Contains("Tried:", events[events.Length - 1]);
+
+        StringAssert.Contains("almost works", fixture.dialogueText.text);
+
+        CleanupFixture(fixture);
+    }
+
+    [Test]
+    public void IntroFlowDirector_EmptySubmit_DoesNothing()
+    {
+        var fixture = BuildIntroFixture();
+
+        var phaseEnum = fixture.tutorialType.GetNestedType("TutorialPhase");
+        var nameQuestion = Enum.Parse(phaseEnum, "NameQuestion");
+        fixture.tutorialType.GetMethod("SetPhase").Invoke(fixture.tutorial, new[] { nameQuestion });
+
+        var before = fixture.tutorialType.GetProperty("Phase").GetValue(fixture.tutorial).ToString();
+        fixture.handleSubmit.Invoke(fixture.director, new object[] { "   " });
+        var after = fixture.tutorialType.GetProperty("Phase").GetValue(fixture.tutorial).ToString();
+
+        Assert.AreEqual(before, after);
+
+        CleanupFixture(fixture);
+    }
+
+    [Test]
+    public void DialogueController_SetSpeaker_UsesDefaultPortraitWhenMissing()
+    {
+        var dialogueType = GetGameType("DialogueController");
+        var go = new GameObject("Dialogue");
+        var dialogue = go.AddComponent(dialogueType);
+
+        var nameGo = new GameObject("Name");
+        nameGo.transform.SetParent(go.transform);
+        var name = nameGo.AddComponent<TextMeshProUGUI>();
+
+        var textGo = new GameObject("Body");
+        textGo.transform.SetParent(go.transform);
+        var body = textGo.AddComponent<TextMeshProUGUI>();
+
+        var portraitGo = new GameObject("Portrait");
+        portraitGo.transform.SetParent(go.transform);
+        var portrait = portraitGo.AddComponent<Image>();
+
+        dialogueType.GetField("dmNameText").SetValue(dialogue, name);
+        dialogueType.GetField("dmDialogueText").SetValue(dialogue, body);
+        dialogueType.GetField("speakerPortraitImage").SetValue(dialogue, portrait);
+
+        var tex = new Texture2D(2, 2);
+        var fallback = Sprite.Create(tex, new Rect(0, 0, 2, 2), new Vector2(0.5f, 0.5f));
+        dialogueType.GetField("defaultPortrait").SetValue(dialogue, fallback);
+
+        dialogueType.GetMethod("SetSpeaker").Invoke(dialogue, new object[] { "DM", null });
+
+        Assert.AreEqual("DM", name.text);
+        Assert.AreEqual(fallback, portrait.sprite);
+        Assert.IsTrue(portrait.enabled);
+
+        UnityEngine.Object.DestroyImmediate(go);
+    }
+
     private static (GameObject root, Component director, Component tutorial, Component gameState, MethodInfo handleSubmit, Type tutorialType, Type gameStateType, TextMeshProUGUI dialogueText) BuildIntroFixture()
     {
         var root = new GameObject("FixtureRoot");
