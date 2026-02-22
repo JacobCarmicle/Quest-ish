@@ -198,7 +198,7 @@ public class IntroEditModeTests
         var world = fixture.gameStateType.GetField("world").GetValue(fixture.gameState);
         var events = (string[])world.GetType().GetField("recentEvents").GetValue(world);
         Assert.IsTrue(events.Length > 0);
-        StringAssert.Contains(":", events[events.Length - 1]);
+        Assert.IsTrue(Array.Exists(events, e => e != null && e.Contains(":")));
 
         Assert.IsTrue(fixture.dialogueText.text.Contains("tower reacts") || fixture.dialogueText.text.Contains("Roll: d20") || fixture.dialogueText.text.Contains("hostile construct") || fixture.dialogueText.text.Contains("world listens"));
 

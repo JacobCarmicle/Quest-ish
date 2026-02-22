@@ -12,6 +12,8 @@ public class IntroFlowDirector : MonoBehaviour
     public HintToast hint;
     public IntroOptionsUI optionsUI;
     public IntroDirectiveExecutor directiveExecutor;
+    public TutorialBeatManager beatManager;
+    public EncounterDirector encounterDirector;
 
     [Header("AI (Optional)")]
     public bool enableAI = false;
@@ -36,6 +38,8 @@ public class IntroFlowDirector : MonoBehaviour
         hint ??= FindFirstObjectByType<HintToast>();
         optionsUI ??= FindFirstObjectByType<IntroOptionsUI>();
         directiveExecutor ??= FindFirstObjectByType<IntroDirectiveExecutor>();
+        beatManager ??= FindFirstObjectByType<TutorialBeatManager>();
+        encounterDirector ??= FindFirstObjectByType<EncounterDirector>();
         aiClient ??= FindFirstObjectByType<OpenAIIntroClient>();
 
         if (optionsUI == null)
@@ -54,6 +58,18 @@ public class IntroFlowDirector : MonoBehaviour
         {
             var go = new GameObject("OpenAIIntroClient");
             aiClient = go.AddComponent<OpenAIIntroClient>();
+        }
+
+        if (beatManager == null)
+        {
+            var go = new GameObject("TutorialBeatManager");
+            beatManager = go.AddComponent<TutorialBeatManager>();
+        }
+
+        if (encounterDirector == null)
+        {
+            var go = new GameObject("EncounterDirector");
+            encounterDirector = go.AddComponent<EncounterDirector>();
         }
 
         if (!enableAI && aiClient != null && aiClient.HasConfiguredApiKey)
@@ -104,6 +120,7 @@ public class IntroFlowDirector : MonoBehaviour
         }
 
         optionsUI?.Clear();
+        gameState?.AddRecentEvent("Tutorial started in wizard tower");
     }
 
     private void HandleSubmit(string playerText)
@@ -162,6 +179,7 @@ public class IntroFlowDirector : MonoBehaviour
             var fallbackIntent = ClassifyInputHeuristic(playerText);
             ApplyIntent(fallbackIntent, playerText, null);
             optionsUI?.Clear();
+        gameState?.AddRecentEvent("Tutorial started in wizard tower");
         }
         else
         {
@@ -171,7 +189,11 @@ public class IntroFlowDirector : MonoBehaviour
             ApplyIntent(validatedIntent, playerText, aiResponse);
             ApplyDirectives(aiResponse.directives);
             optionsUI?.Clear();
+        gameState?.AddRecentEvent("Tutorial started in wizard tower");
         }
+
+        if (tutorial != null && tutorial.Phase == TutorialController.TutorialPhase.Complete)
+            encounterDirector?.ResolveEncounter();
 
         SaveState();
         input?.SetInteractable(true);
@@ -222,6 +244,8 @@ public class IntroFlowDirector : MonoBehaviour
     {
         var narration = ai != null && !string.IsNullOrWhiteSpace(ai.narration) ? ai.narration : null;
         var clarify = ai != null && !string.IsNullOrWhiteSpace(ai.clarifyQuestion) ? ai.clarifyQuestion : null;
+        beatManager?.AdvanceByIntent(intent);
+        encounterDirector?.ApplyIntent(intent);
 
         var currentPhase = tutorial != null ? tutorial.Phase : TutorialController.TutorialPhase.Arrival;
         var nextResolvedPhase = currentPhase == TutorialController.TutorialPhase.Outcome
@@ -232,7 +256,7 @@ public class IntroFlowDirector : MonoBehaviour
         {
             case IntroIntentType.DIALOGUE:
                 SetSpeaker(dmName, dmPortrait);
-                dialogue?.Say(narration ?? $"You attempt: \"{playerText}\".\n\nThe tower reacts — faint runes pulse near the sealed door. What do you try next?");
+                dialogue?.Say(narration ?? $"You attempt: \"{playerText}\".\n\nThe tower reacts — faint runes pulse near the sealed door.\nGoal: {beatManager?.GoalHint() ?? "Keep exploring"}");
                 tutorial?.SetPhase(nextResolvedPhase);
                 gameState?.AddRecentEvent($"Dialogue: {playerText}");
                 break;
@@ -242,17 +266,22 @@ public class IntroFlowDirector : MonoBehaviour
                 var level = gameState?.world?.player != null ? gameState.world.player.level : 1;
                 var roll = RollResolver.Resolve(playerText, level);
                 var rollLine = $"Roll: d20({roll.d20}) + {roll.modifier} [{roll.skill}] = {roll.total} vs DC {roll.dc} → {(roll.success ? "SUCCESS" : "FAIL")}";
+                encounterDirector?.ApplyRollOutcome(roll.success);
                 var outcomeText = roll.success
                     ? "Your move works, but stirs unstable energy in the room."
                     : "You miss the mark; the tower pushes back with a crackle of arcane force.";
-                dialogue?.Say((narration ?? $"You attempt \"{playerText}\".") + $"\n\n{rollLine}\n{outcomeText}");
+                var encounterText = encounterDirector != null && encounterDirector.encounterActive
+                    ? "\nAn Arcane Sentinel manifests from the rune circle!"
+                    : "";
+                dialogue?.Say((narration ?? $"You attempt \"{playerText}\".") + $"\n\n{rollLine}\n{outcomeText}{encounterText}\nGoal: {beatManager?.GoalHint() ?? "Stabilize the tower"}");
                 tutorial?.SetPhase(nextResolvedPhase);
                 gameState?.AddRecentEvent($"Skill check: {playerText} | {rollLine}");
                 break;
 
             case IntroIntentType.COMBAT:
                 SetSpeaker(enemyName, enemyPortrait != null ? enemyPortrait : dmPortrait);
-                dialogue?.Say(narration ?? $"You escalate with \"{playerText}\".\n\nA hostile construct animates near the rune circle. Stay focused and describe your next move.");
+                encounterDirector?.TriggerEncounter();
+                dialogue?.Say(narration ?? $"You escalate with \"{playerText}\".\n\nA hostile construct animates near the rune circle. Stay focused and describe your next move.\nGoal: {beatManager?.GoalHint() ?? "Survive"}");
                 tutorial?.SetPhase(nextResolvedPhase);
                 gameState?.AddRecentEvent($"Combat intent: {playerText}");
                 break;
