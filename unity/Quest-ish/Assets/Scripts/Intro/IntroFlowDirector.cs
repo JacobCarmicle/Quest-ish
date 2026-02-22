@@ -172,6 +172,10 @@ public class IntroFlowDirector : MonoBehaviour
         {
             gameState?.SetPlayerName(playerText);
             gameState?.AddRecentEvent($"Chose name: {playerText}");
+            var pstate = MainMenuFlow.LoadProgress();
+            pstate.playerName = playerText;
+            pstate.lastSceneTag = "intro_scene";
+            MainMenuFlow.SaveProgress(pstate);
 
             SetSpeaker(dmName, dmPortrait);
             dialogue?.Say($"Alright, {playerText}. Strong name.\n\nChoose your class: Thief, Fighter, or Mage.");
@@ -190,6 +194,11 @@ public class IntroFlowDirector : MonoBehaviour
             if (gameState?.world?.player != null && CharacterLoadout.TryApplyClass(gameState.world.player, playerText, out var className))
             {
                 _awaitingClassSelection = false;
+                var pstate2 = MainMenuFlow.LoadProgress();
+                pstate2.hasStartedGame = true;
+                pstate2.playerClass = gameState.world.player.classTag;
+                pstate2.lastSceneTag = "intro_scene";
+                MainMenuFlow.SaveProgress(pstate2);
                 SetSpeaker(dmName, dmPortrait);
                 dialogue?.Say($"Excellent. {className} it is.\n\n{CharacterLoadout.StarterSummary(gameState.world.player)}\n\nYou stand in a wizard tower study with a sealed door, a glowing rune circle, and a whispering spellbook. What do you do?");
                 hint?.ShowForSeconds("Now take your first meaningful action.", 2.5f);
