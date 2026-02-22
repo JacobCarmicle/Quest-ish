@@ -3143,20 +3143,6 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 110, y: 110}
   m_Pivot: {x: 0, y: 1}
---- !u!114 &1888209736
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1888209734}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 2125287693}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp-Editor::SpeakerHeaderUI
-  Portrait: {fileID: 1885448721}
-  NameLegacy: {fileID: 597044192}
 --- !u!114 &1888209737
 MonoBehaviour:
   m_ObjectHideFlags: 0
