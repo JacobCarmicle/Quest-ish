@@ -379,7 +379,7 @@ MonoBehaviour:
   dialogue: {fileID: 1242981252}
   input: {fileID: 1049832837}
   hint: {fileID: 678708804}
-  dmPortrait: {fileID: 0}
+  dmPortrait: {fileID: 21300000, guid: cd74fbd1b72db4fd3a82da6e3e05b87b, type: 3}
   enemyPortrait: {fileID: 0}
   dmName: DM
   enemyName: Enemy
@@ -1923,7 +1923,7 @@ MonoBehaviour:
   dmNameText: {fileID: 1757325249}
   dmDialogueText: {fileID: 1184021288}
   speakerPortraitImage: {fileID: 1885448721}
-  defaultPortrait: {fileID: 0}
+  defaultPortrait: {fileID: 21300000, guid: cd74fbd1b72db4fd3a82da6e3e05b87b, type: 3}
   hidePortraitWhenMissing: 1
 --- !u!4 &1242981253
 Transform:
