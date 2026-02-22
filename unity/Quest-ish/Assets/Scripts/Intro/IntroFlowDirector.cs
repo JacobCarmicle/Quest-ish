@@ -121,8 +121,10 @@ public class IntroFlowDirector : MonoBehaviour
         }
         else
         {
-            var parsed = ParseIntent(aiResponse.intentType, playerText);
-            ApplyIntent(parsed, playerText, aiResponse);
+            if (!IntroAIResponseValidator.TryNormalize(aiResponse, out var validatedIntent))
+                validatedIntent = ClassifyInputHeuristic(playerText);
+
+            ApplyIntent(validatedIntent, playerText, aiResponse);
             ApplyDirectives(aiResponse.directives);
         }
 

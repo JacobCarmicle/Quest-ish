@@ -338,6 +338,58 @@ public class IntroEditModeTests
         File.Delete(temp);
     }
 
+
+    [Test]
+    public void IntroAIResponseValidator_InvalidIntent_ReturnsFalse()
+    {
+        var respType = Type.GetType("IntroAIResponse, Assembly-CSharp");
+        var resp = Activator.CreateInstance(respType);
+        respType.GetField("intentType").SetValue(resp, "SOMETHING_ELSE");
+
+        var validatorType = Type.GetType("IntroAIResponseValidator, Assembly-CSharp");
+        var args = new object[] { resp, null };
+        var ok = (bool)validatorType.GetMethod("TryNormalize").Invoke(null, args);
+
+        Assert.IsFalse(ok);
+    }
+
+    [Test]
+    public void IntroAIResponseValidator_ValidIntent_NormalizesFields()
+    {
+        var respType = Type.GetType("IntroAIResponse, Assembly-CSharp");
+        var resp = Activator.CreateInstance(respType);
+        respType.GetField("intentType").SetValue(resp, "combat");
+
+        var validatorType = Type.GetType("IntroAIResponseValidator, Assembly-CSharp");
+        var args = new object[] { resp, null };
+        var ok = (bool)validatorType.GetMethod("TryNormalize").Invoke(null, args);
+
+        Assert.IsTrue(ok);
+        Assert.AreEqual("COMBAT", respType.GetField("intentType").GetValue(resp));
+        Assert.IsNotNull(respType.GetField("directives").GetValue(resp));
+        Assert.IsNotNull(respType.GetField("options").GetValue(resp));
+    }
+
+    [Test]
+    public void IntroFlowDirector_AllowedDirective_IsTracked()
+    {
+        var fixture = BuildIntroFixture();
+
+        var dType = Type.GetType("IntroDirective, Assembly-CSharp");
+        var arr = Array.CreateInstance(dType, 1);
+        var d = Activator.CreateInstance(dType);
+        dType.GetField("type").SetValue(d, "play_music");
+        arr.SetValue(d, 0);
+
+        fixture.directorType.GetMethod("ApplyDirectives").Invoke(fixture.director, new object[] { arr });
+
+        var world = fixture.gameStateType.GetField("world").GetValue(fixture.gameState);
+        var events = (string[])world.GetType().GetField("recentEvents").GetValue(world);
+        StringAssert.Contains("Directive:play_music", events[events.Length - 1]);
+
+        CleanupFixture(fixture);
+    }
+
     private static (GameObject root, Component director, Component tutorial, Component gameState, MethodInfo handleSubmit, Type tutorialType, Type gameStateType, Type directorType, TextMeshProUGUI dialogueText) BuildIntroFixture()
     {
         var root = new GameObject("FixtureRoot");
