@@ -14,6 +14,7 @@ public class IntroOptionsUI : MonoBehaviour
 
     public void ShowOptions(IntroOption[] options, Action<string> onPicked)
     {
+        EnsureContainer();
         Clear();
 
         if (options == null || options.Length == 0)
@@ -45,6 +46,33 @@ public class IntroOptionsUI : MonoBehaviour
         _spawned.Clear();
     }
 
+    private void EnsureContainer()
+    {
+        if (container != null) return;
+
+        var canvas = FindFirstObjectByType<Canvas>();
+        if (canvas == null) return;
+
+        var go = new GameObject("OptionsContainer", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
+        go.transform.SetParent(canvas.transform, false);
+
+        container = go.GetComponent<RectTransform>();
+        container.anchorMin = new Vector2(0.05f, 0.18f);
+        container.anchorMax = new Vector2(0.95f, 0.35f);
+        container.offsetMin = Vector2.zero;
+        container.offsetMax = Vector2.zero;
+
+        var v = go.GetComponent<VerticalLayoutGroup>();
+        v.childControlHeight = true;
+        v.childControlWidth = true;
+        v.childForceExpandHeight = false;
+        v.childForceExpandWidth = true;
+        v.spacing = 8f;
+
+        var fitter = go.GetComponent<ContentSizeFitter>();
+        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+    }
+
     private Button CreateButton()
     {
         if (container == null) return null;
@@ -56,8 +84,14 @@ public class IntroOptionsUI : MonoBehaviour
             return b;
         }
 
-        var go = new GameObject("OptionButton", typeof(RectTransform), typeof(Image), typeof(Button));
+        var go = new GameObject("OptionButton", typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement));
         go.transform.SetParent(container, false);
+
+        var image = go.GetComponent<Image>();
+        image.color = new Color(0f, 0f, 0f, 0.55f);
+
+        var le = go.GetComponent<LayoutElement>();
+        le.preferredHeight = 56f;
 
         var labelGo = new GameObject("Label", typeof(RectTransform), typeof(TextMeshProUGUI));
         labelGo.transform.SetParent(go.transform, false);
@@ -65,6 +99,7 @@ public class IntroOptionsUI : MonoBehaviour
         var lbl = labelGo.GetComponent<TextMeshProUGUI>();
         lbl.alignment = TextAlignmentOptions.Center;
         lbl.fontSize = 24;
+        lbl.color = Color.white;
 
         var rt = labelGo.GetComponent<RectTransform>();
         rt.anchorMin = Vector2.zero;

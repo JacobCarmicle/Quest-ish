@@ -27,6 +27,21 @@ public class IntroFlowDirector : MonoBehaviour
 
     private bool _isHandling;
 
+    private void Awake()
+    {
+        tutorial ??= FindFirstObjectByType<TutorialController>();
+        gameState ??= FindFirstObjectByType<GameState>();
+        dialogue ??= FindFirstObjectByType<DialogueController>();
+        input ??= FindFirstObjectByType<PlayerInputController>();
+        hint ??= FindFirstObjectByType<HintToast>();
+        optionsUI ??= FindFirstObjectByType<IntroOptionsUI>();
+        directiveExecutor ??= FindFirstObjectByType<IntroDirectiveExecutor>();
+        aiClient ??= FindFirstObjectByType<OpenAIIntroClient>();
+
+        if (!enableAI && aiClient != null && aiClient.HasConfiguredApiKey)
+            enableAI = true;
+    }
+
     private static readonly string[] ImpossibleHints = { "god", "infinite", "hack", "cheat", "spawn 10000", "delete the game" };
     private static readonly string[] CombatHints = { "attack", "hit", "stab", "shoot", "fight", "kill", "punch" };
     private static readonly string[] SkillHints = { "sneak", "stealth", "persuade", "convince", "climb", "pick", "lock", "search", "inspect", "roll" };
@@ -270,7 +285,7 @@ public class IntroFlowDirector : MonoBehaviour
 
     private void EnsureAudioListener()
     {
-        if (FindObjectOfType<AudioListener>() != null) return;
+        if (FindFirstObjectByType<AudioListener>() != null) return;
 
         var cam = Camera.main;
         if (cam != null)

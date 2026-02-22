@@ -28,10 +28,10 @@ public class PlayerInputController : MonoBehaviour
     private void AutoWireIfMissing()
     {
         if (inputField == null)
-            inputField = FindObjectOfType<TMP_InputField>();
+            inputField = FindFirstObjectByType<TMP_InputField>();
 
         if (sendButton == null)
-            sendButton = FindObjectOfType<Button>();
+            sendButton = FindFirstObjectByType<Button>();
 
         if (inputField != null && inputField.textViewport == null)
         {

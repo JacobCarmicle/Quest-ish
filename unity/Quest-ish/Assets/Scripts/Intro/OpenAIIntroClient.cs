@@ -6,6 +6,7 @@ using UnityEngine.Networking;
 
 public class OpenAIIntroClient : MonoBehaviour
 {
+    public bool HasConfiguredApiKey => !string.IsNullOrWhiteSpace(apiKey) || !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("OPENAI_API_KEY"));
     [Header("OpenAI")]
     public string apiKey;
     public string model = "gpt-4o-mini";
