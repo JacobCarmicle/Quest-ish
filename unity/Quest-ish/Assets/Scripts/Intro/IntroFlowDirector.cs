@@ -55,7 +55,7 @@ public class IntroFlowDirector : MonoBehaviour
         if (hint != null)
         {
             hint.HideImmediate();
-            hint.ShowForSeconds("💡 You can type anything.", 2.5f);
+            hint.ShowForSeconds("Tip: You can type anything.", 2.5f);
         }
     }
 
@@ -90,7 +90,7 @@ public class IntroFlowDirector : MonoBehaviour
                     tutorial.SetPhase(TutorialController.TutorialPhase.FirstAction);
 
                 if (hint != null)
-                    hint.ShowForSeconds("💡 Try something silly. Failure is part of the fun.", 3.0f);
+                    hint.ShowForSeconds("Tip: Try something silly. Failure is part of the fun.", 3.0f);
 
                 break;
             }
