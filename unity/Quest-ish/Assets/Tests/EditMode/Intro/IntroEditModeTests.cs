@@ -1,3 +1,4 @@
+using System;
 using NUnit.Framework;
 using TMPro;
 using UnityEngine;
@@ -5,39 +6,59 @@ using UnityEngine.UI;
 
 public class IntroEditModeTests
 {
+    private static Type GetGameType(string typeName)
+    {
+        var t = Type.GetType($"{typeName}, Assembly-CSharp");
+        Assert.IsNotNull(t, $"Type not found: {typeName} in Assembly-CSharp");
+        return t;
+    }
+
     [Test]
     public void TutorialController_Advance_StopsAtComplete()
     {
+        var tType = GetGameType("TutorialController");
         var go = new GameObject("TutorialController");
-        var tutorial = go.AddComponent<TutorialController>();
+        var tutorial = go.AddComponent(tType);
 
-        tutorial.SetPhase(TutorialController.TutorialPhase.Arrival);
-        tutorial.Advance();
-        tutorial.Advance();
-        tutorial.Advance();
-        tutorial.Advance();
-        tutorial.Advance();
-        tutorial.Advance();
+        var phaseEnum = tType.GetNestedType("TutorialPhase");
+        var setPhase = tType.GetMethod("SetPhase");
+        var advance = tType.GetMethod("Advance");
+        var phaseProp = tType.GetProperty("Phase");
 
-        Assert.AreEqual(TutorialController.TutorialPhase.Complete, tutorial.Phase);
+        var arrival = Enum.Parse(phaseEnum, "Arrival");
+        var complete = Enum.Parse(phaseEnum, "Complete");
 
-        Object.DestroyImmediate(go);
+        setPhase.Invoke(tutorial, new[] { arrival });
+        for (int i = 0; i < 6; i++) advance.Invoke(tutorial, null);
+
+        var current = phaseProp.GetValue(tutorial);
+        Assert.AreEqual(complete, current);
+
+        UnityEngine.Object.DestroyImmediate(go);
     }
 
     [Test]
     public void GameState_AddRecentEvent_KeepLast10()
     {
+        var gsType = GetGameType("GameState");
         var go = new GameObject("GameState");
-        var gs = go.AddComponent<GameState>();
+        var gs = go.AddComponent(gsType);
 
+        var addRecentEvent = gsType.GetMethod("AddRecentEvent");
         for (int i = 1; i <= 15; i++)
-            gs.AddRecentEvent($"E{i}");
+            addRecentEvent.Invoke(gs, new object[] { $"E{i}" });
 
-        Assert.AreEqual(10, gs.world.recentEvents.Length);
-        Assert.AreEqual("E6", gs.world.recentEvents[0]);
-        Assert.AreEqual("E15", gs.world.recentEvents[9]);
+        var worldField = gsType.GetField("world");
+        var world = worldField.GetValue(gs);
+        var worldType = world.GetType();
+        var recentEventsField = worldType.GetField("recentEvents");
+        var events = (string[])recentEventsField.GetValue(world);
 
-        Object.DestroyImmediate(go);
+        Assert.AreEqual(10, events.Length);
+        Assert.AreEqual("E6", events[0]);
+        Assert.AreEqual("E15", events[9]);
+
+        UnityEngine.Object.DestroyImmediate(go);
     }
 
     [Test]
@@ -69,13 +90,20 @@ public class IntroEditModeTests
         btnGo.AddComponent<Image>();
         var button = btnGo.AddComponent<Button>();
 
+        var cType = GetGameType("PlayerInputController");
         var controllerGo = new GameObject("PlayerInputController");
-        var controller = controllerGo.AddComponent<PlayerInputController>();
-        controller.inputField = input;
-        controller.sendButton = button;
+        var controller = controllerGo.AddComponent(cType);
+
+        cType.GetField("inputField").SetValue(controller, input);
+        cType.GetField("sendButton").SetValue(controller, button);
 
         string submitted = null;
-        controller.OnSubmit += s => submitted = s;
+        var evt = cType.GetEvent("OnSubmit");
+        Action<string> handler = s => submitted = s;
+        evt.AddEventHandler(controller, handler);
+
+        var awake = cType.GetMethod("Awake", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+        awake?.Invoke(controller, null);
 
         input.text = "hello dm";
         button.onClick.Invoke();
@@ -83,7 +111,8 @@ public class IntroEditModeTests
         Assert.AreEqual("hello dm", submitted);
         Assert.AreEqual(string.Empty, input.text);
 
-        Object.DestroyImmediate(root);
-        Object.DestroyImmediate(controllerGo);
+        evt.RemoveEventHandler(controller, handler);
+        UnityEngine.Object.DestroyImmediate(root);
+        UnityEngine.Object.DestroyImmediate(controllerGo);
     }
 }
