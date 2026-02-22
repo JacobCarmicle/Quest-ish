@@ -35,9 +35,10 @@ public class OpenAIIntroClient : MonoBehaviour
         }
 
         var systemPrompt =
-            "You are a game DM. Return ONLY strict JSON with keys: intentType,narration,clarifyQuestion,directives,options. " +
+            "You are a DM guiding a player through a wizard tower tutorial. Return ONLY strict JSON with keys: intentType,narration,clarifyQuestion,directives,options. " +
             "intentType must be one of DIALOGUE,SKILL_CHECK,COMBAT,CLARIFY,INVALID. " +
-            "Keep narration short (1-3 lines).";
+            "Give clear guidance in narration, but do not force choices. Keep narration short (2-4 lines). " +
+            "When a roll is needed, set intentType=SKILL_CHECK and let the game engine resolve it.";
 
         var userPrompt = JsonUtility.ToJson(turn);
         var reqObj = new ChatCompletionRequest

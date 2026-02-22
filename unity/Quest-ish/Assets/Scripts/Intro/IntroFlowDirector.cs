@@ -87,8 +87,8 @@ public class IntroFlowDirector : MonoBehaviour
         SetSpeaker(dmName, dmPortrait);
 
         dialogue?.Say(
-            "You wake up on a forest path. That’s concerning… but not unusual.\n\n" +
-            "Before you do anything else — what do people call you?"
+            "You wake in a wizard tower, the air humming with unstable magic.\n\n" +
+            "Before we continue — what do people call you?"
         );
 
         tutorial?.SetPhase(TutorialController.TutorialPhase.NameQuestion);
@@ -128,7 +128,7 @@ public class IntroFlowDirector : MonoBehaviour
             gameState?.AddRecentEvent($"Chose name: {playerText}");
 
             SetSpeaker(dmName, dmPortrait);
-            dialogue?.Say($"Alright, {playerText}. Strong name.\n\nWhat do you do?");
+            dialogue?.Say($"Alright, {playerText}. Strong name.\n\nYou’re in a wizard tower study with a sealed door, a glowing rune circle, and a whispering spellbook. What do you do?");
             tutorial?.SetPhase(TutorialController.TutorialPhase.FirstAction);
             hint?.ShowForSeconds("Tip: Try something silly. Failure is part of the fun.", 3.0f);
 
@@ -161,7 +161,7 @@ public class IntroFlowDirector : MonoBehaviour
 
             var fallbackIntent = ClassifyInputHeuristic(playerText);
             ApplyIntent(fallbackIntent, playerText, null);
-            optionsUI?.ShowOptions(null, null);
+            optionsUI?.Clear();
         }
         else
         {
@@ -170,7 +170,7 @@ public class IntroFlowDirector : MonoBehaviour
 
             ApplyIntent(validatedIntent, playerText, aiResponse);
             ApplyDirectives(aiResponse.directives);
-            optionsUI?.ShowOptions(aiResponse.options, HandleSubmit);
+            optionsUI?.Clear();
         }
 
         SaveState();
@@ -232,21 +232,27 @@ public class IntroFlowDirector : MonoBehaviour
         {
             case IntroIntentType.DIALOGUE:
                 SetSpeaker(dmName, dmPortrait);
-                dialogue?.Say(narration ?? $"You say: \"{playerText}\".\n\nThe world listens.");
+                dialogue?.Say(narration ?? $"You attempt: \"{playerText}\".\n\nThe tower reacts — faint runes pulse near the sealed door. What do you try next?");
                 tutorial?.SetPhase(nextResolvedPhase);
                 gameState?.AddRecentEvent($"Dialogue: {playerText}");
                 break;
 
             case IntroIntentType.SKILL_CHECK:
                 SetSpeaker(dmName, dmPortrait);
-                dialogue?.Say(narration ?? $"You attempt \"{playerText}\".\n\nRoll resolves in engine: partial success.");
+                var level = gameState?.world?.player != null ? gameState.world.player.level : 1;
+                var roll = RollResolver.Resolve(playerText, level);
+                var rollLine = $"Roll: d20({roll.d20}) + {roll.modifier} [{roll.skill}] = {roll.total} vs DC {roll.dc} → {(roll.success ? "SUCCESS" : "FAIL")}";
+                var outcomeText = roll.success
+                    ? "Your move works, but stirs unstable energy in the room."
+                    : "You miss the mark; the tower pushes back with a crackle of arcane force.";
+                dialogue?.Say((narration ?? $"You attempt \"{playerText}\".") + $"\n\n{rollLine}\n{outcomeText}");
                 tutorial?.SetPhase(nextResolvedPhase);
-                gameState?.AddRecentEvent($"Skill check: {playerText}");
+                gameState?.AddRecentEvent($"Skill check: {playerText} | {rollLine}");
                 break;
 
             case IntroIntentType.COMBAT:
                 SetSpeaker(enemyName, enemyPortrait != null ? enemyPortrait : dmPortrait);
-                dialogue?.Say(narration ?? $"You initiate combat with \"{playerText}\".\n\nEncounter hook triggered.");
+                dialogue?.Say(narration ?? $"You escalate with \"{playerText}\".\n\nA hostile construct animates near the rune circle. Stay focused and describe your next move.");
                 tutorial?.SetPhase(nextResolvedPhase);
                 gameState?.AddRecentEvent($"Combat intent: {playerText}");
                 break;

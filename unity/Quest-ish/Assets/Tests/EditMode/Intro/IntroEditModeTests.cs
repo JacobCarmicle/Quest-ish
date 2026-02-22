@@ -157,7 +157,7 @@ public class IntroEditModeTests
 
         var phase = fixture.tutorialType.GetProperty("Phase").GetValue(fixture.tutorial).ToString();
         Assert.AreEqual("Complete", phase);
-        Assert.IsTrue(fixture.dialogueText.text.Contains("ready") || fixture.dialogueText.text.Contains("Encounter hook") || fixture.dialogueText.text.Contains("world listens") || fixture.dialogueText.text.Contains("Roll resolves"));
+        Assert.IsTrue(fixture.dialogueText.text.Contains("ready") || fixture.dialogueText.text.Contains("hostile construct") || fixture.dialogueText.text.Contains("tower reacts") || fixture.dialogueText.text.Contains("Roll: d20"));
 
         CleanupFixture(fixture);
     }
@@ -200,7 +200,7 @@ public class IntroEditModeTests
         Assert.IsTrue(events.Length > 0);
         StringAssert.Contains(":", events[events.Length - 1]);
 
-        Assert.IsTrue(fixture.dialogueText.text.Contains("almost works") || fixture.dialogueText.text.Contains("world listens") || fixture.dialogueText.text.Contains("Roll resolves") || fixture.dialogueText.text.Contains("Encounter hook"));
+        Assert.IsTrue(fixture.dialogueText.text.Contains("tower reacts") || fixture.dialogueText.text.Contains("Roll: d20") || fixture.dialogueText.text.Contains("hostile construct") || fixture.dialogueText.text.Contains("world listens"));
 
         CleanupFixture(fixture);
     }
