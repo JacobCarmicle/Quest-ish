@@ -83,11 +83,28 @@ public class GameFlowEditModeTests
 
         var tags = T("GameSceneTags");
         var classTag = (string)tags.GetField("CharacterSelection").GetValue(null);
+        stateType.GetField("hasStartedGame").SetValue(state, true);
         stateType.GetField("lastSceneTag").SetValue(state, classTag);
 
         var flow = T("MainMenuFlow");
         var scene = (string)flow.GetMethod("ResolveContinueScene").Invoke(null, new[] { state });
         Assert.AreEqual("CharacterSelection", scene);
+    }
+
+    [Test]
+    public void MainMenuFlow_ResolveContinueScene_WhenNotStarted_GoesToIntro()
+    {
+        var stateType = T("GameProgressState");
+        var state = Activator.CreateInstance(stateType);
+
+        var tags = T("GameSceneTags");
+        var classTag = (string)tags.GetField("CharacterSelection").GetValue(null);
+        stateType.GetField("hasStartedGame").SetValue(state, false);
+        stateType.GetField("lastSceneTag").SetValue(state, classTag);
+
+        var flow = T("MainMenuFlow");
+        var scene = (string)flow.GetMethod("ResolveContinueScene").Invoke(null, new[] { state });
+        Assert.AreEqual("IntroScene", scene);
     }
 
 }

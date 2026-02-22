@@ -34,6 +34,9 @@ public class MainMenuFlow : MonoBehaviour
     public static string ResolveContinueScene(GameProgressState state)
     {
         state ??= new GameProgressState();
+        if (!state.hasStartedGame)
+            return SceneRoutePlanner.GetNewGameScene();
+
         return SceneRoutePlanner.GetContinueScene(state.lastSceneTag);
     }
 
