@@ -155,6 +155,7 @@ Transform:
   - {fileID: 678708805}
   - {fileID: 281853596}
   - {fileID: 1815227717}
+  - {fileID: 271997706}
   m_Father: {fileID: 271854448}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &211816833
@@ -185,7 +186,7 @@ RectTransform:
   m_GameObject: {fileID: 211816833}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 0, y: 0, z: 0}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1320628985}
@@ -330,6 +331,55 @@ Transform:
   - {fileID: 1094749219}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &271997705
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 271997706}
+  - component: {fileID: 271997707}
+  m_Layer: 0
+  m_Name: OpenAIClient
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &271997706
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 271997705}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 107608063}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &271997707
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 271997705}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ebdb631233b0b41dd8caef5524bbafff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::OpenAIIntroClient
+  apiKey: REDACTED_OPENAI_KEY
+  model: gpt-4o-mini
+  endpoint: https://api.openai.com/v1/chat/completions
+  timeoutSeconds: 20
+  maxRetries: 1
 --- !u!1 &281853595
 GameObject:
   m_ObjectHideFlags: 0
@@ -379,6 +429,10 @@ MonoBehaviour:
   dialogue: {fileID: 1242981252}
   input: {fileID: 1049832837}
   hint: {fileID: 678708804}
+  optionsUI: {fileID: 0}
+  directiveExecutor: {fileID: 0}
+  enableAI: 1
+  aiClient: {fileID: 271997707}
   dmPortrait: {fileID: 21300000, guid: cd74fbd1b72db4fd3a82da6e3e05b87b, type: 3}
   enemyPortrait: {fileID: 0}
   dmName: DM
@@ -1786,7 +1840,7 @@ RectTransform:
   m_Father: {fileID: 1259061063}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.04, y: 0.1}
-  m_AnchorMax: {x: 0.96, y: 0.50}
+  m_AnchorMax: {x: 0.96, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
@@ -2102,7 +2156,6 @@ RectTransform:
   - {fileID: 1757325248}
   - {fileID: 1184021287}
   - {fileID: 1888209735}
-
   m_Father: {fileID: 1727152254}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.05, y: 0.05}
@@ -2610,13 +2663,12 @@ RectTransform:
   m_GameObject: {fileID: 1727152253}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 0, y: 0, z: 0}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1259061063}
   - {fileID: 896179215}
   - {fileID: 910385913}
-
   m_Father: {fileID: 2132448972}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -3042,7 +3094,7 @@ RectTransform:
   m_Father: {fileID: 1888209735}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 1, y: 1}
+  m_AnchorMax: {x: 0, y: 0}
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
@@ -3352,21 +3404,6 @@ AudioSource:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
---- !u!115 &2125287693
-MonoScript:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: 
-  serializedVersion: 7
-  m_DefaultReferences: {}
-  m_Icon: {fileID: 0}
-  m_Type: 0
-  m_ExecutionOrder: 0
-  m_ClassName: SpeakerHeaderUI
-  m_Namespace: 
-  m_AssemblyName: Assembly-CSharp-Editor
 --- !u!1 &2132448971
 GameObject:
   m_ObjectHideFlags: 0
